@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+	<title></title>
+	<style>
+		body {margin: 0px;background-color: #ffffff;font-family:Monospace;text-align: center;font-size: 15px;line-height: 30px;overflow: hidden;	}
+		#info {background-color: #ccc; position: absolute;top: 0px; width: 240px; height:100%; padding: 15px;z-index:100; overflow: auto;}
+		#info input {width: 100px;}
+
+		#info input.l-size {width: 50px;}
+		#info input[type=checkbox] {width: 50px;}
+
+		#submenu {height:auto; width:auto; position: fixed; top:10px; left:290px; padding: 20px; background-color: #ccc;}
+		#submenu>span {display: inline-block;}
+		#submenu>span label {display: block;}
+
+		#submenu>span.accessories div {opacity: 1;width: 40px; height: 40px; border: 1px solid red;display: inline-block; margin: 5px; cursor: pointer; background-repeat: no-repeat; background-position: center;background-size: 70%; }
+		#submenu>span.accessories div.on {background-color:#ff3300;}
+		#submenu>span.accessories div:hover {background-color:#ff3300; opacity: .6;}
+		#submenu>span.accessories div.zoomin {background-image: url('source/zoomin.svg');}
+		#submenu>span.accessories div.zoomout {background-image: url('source/zoomout.svg');}
+		#submenu>span.accessories div.car {background-image: url('source/car.svg');background-size: 80%; width: 60px;}
+		#submenu>span.accessories div.person {background-image: url('source/person.svg');background-size: 25%}
+	</style>
+</head>
+<body>
+<script type="x-shader/x-vertex" id="vertexShader">
+	varying vec3 vWorldPosition;
+	void main() {
+		vec4 worldPosition = modelMatrix * vec4( position, 1.0 );
+		vWorldPosition = worldPosition.xyz;
+		gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+	}
+</script>
+<script type="x-shader/x-fragment" id="fragmentShader">
+	uniform vec3 topColor;
+	uniform vec3 bottomColor;
+	uniform float offset;
+	uniform float exponent;
+	varying vec3 vWorldPosition;
+	void main() {
+		float h = normalize( vWorldPosition + offset ).y;
+		gl_FragColor = vec4( mix( bottomColor, topColor, max( pow( max( h , 0.0), exponent ), 0.0 ) ), 1.0 );
+	}
+</script>
+<script src='jquery.js'></script>
+<script src='three.min.js'></script>
+<script src='OrbitControls.js'></script>
+<script src='DragControls.js'></script>
+<script src="fabric.min.js"></script>
+
+<div id='submenu'>
+	<span>
+		<label>View:
+			<select class='view' name='viewPreset'>
+				<option value="default" selected="">Default</option>
+				<option value="top">Top</option>
+				<option value="front">Front</option>
+				<option value="front-right">Front-Right</option>
+				<option value="right">Right</option>
+				<option value="back-right">Back-Right</option>
+				<option value="back">Back</option>
+				<option value="back-left">Back-Left</option>
+				<option value="left">Left</option>
+				<option value="front-left">Front-Left</option>
+				<option value="inside">Inside</option>
+			</select>
+		</label>
+		<label>Scene:
+			<select class='view' name="viewScene">
+				<option value="default">Default</option>
+				<option value="east_texas">East Texas</option>
+				<option value="mountains">Mountains</option>
+				<option value="west_texas">West Texas</option>
+			</select>
+		</label>
+	</span>
+	<span class='accessories'>
+		<div data-id="zoomin" data-type='viewPreset' title="Zoom in" class="zoomin"></div>
+		<div data-id="zoomout" data-type='viewPreset' title="Zoom out" class="zoomout"></div>
+		<div data-id="car" title="Car" class="car models"></div>
+		<div data-id="person" title="Person" class="person models"></div>
+	</span>
+</div>
+<div id="info">
+	<br/>
+	<label>Width: <input name='width' class="size" value="30" /></label>
+	<label>Length: <input name='length' class="size" value="60" /></label>
+	<label>Height: <input name='height' class="size" value="16" /></label>
+	<label>Pitch: <input name='pitch' class="size" value="2" /></label>
+	<fieldset>
+		<legend>Overhangs</legend>
+		<label>Sides: <input name='o_sides' class="size" value="0" /></label>
+		<label>End: <input name='o_end' class="size" value="0" /></label>
+	</fieldset>
+	<fieldset>
+		<legend>Doors and Windows</legend>
+		<label>Wall</label>
+		<select name='wall'>
+			<option value='front'>Front</option>
+			<option value='back'>Back</option>
+			<option value='left'>Left</option>
+			<option value='right'>Right</option>
+		</select>
+		<br/>
+		<label>Select:</label>
+		<select name='window'>
+			<option value='w_3_3'>Window 3 x 3</option>
+			<option value='w_6_3'>Window 6 x 3</option>
+			<option value='d_3_7'>Door 3 x 7</option>
+			<option value='d_4_7'>Door 4 x 7</option>
+			<option value='d_6_7'>Door 6 x 7</option>
+			<option value='r_8_8'>Roll-Up 8x8</option>
+			<option value='r_8_10'>Roll-Up 8x10</option>
+			<option value='r_16_8'>Roll-Up 16x8</option>
+			<option value='r_16_16'>Roll-Up 16x16</option>
+			<option value='r_16_14'>Roll-Up 16x14</option>
+			<option value='r_14_16'>Roll-Up 14x16</option>
+			<option value='r_14_14'>Roll-Up 14x14</option>
+			<option value='r_14_12'>Roll-Up 14x12</option>
+			<option value='r_12_14'>Roll-Up 12x14</option>
+			<option value='r_12_12'>Roll-Up 12x12</option>
+			<option value='r_12_10'>Roll-Up 12x10</option>
+			<option value='r_10_8'>Roll-Up 10x8</option>
+			<option value='r_10_12'>Roll-Up 10x12</option>
+			<option value='r_10_10'>Roll-Up 10x10</option>
+		</select>
+		<button class="addHole" name='addHole'>Add --></button>
+		<span class='contanerHoles'></span>
+	</fieldset>
+
+	<fieldset>
+		<legend>Lean-to</legend>
+		<fieldset class='leanto' data-wall='front'>
+			<legend>Front</legend>
+			<label>Enable: <input type="checkbox" name='c_front'></label>
+			<label>Width: <input name='width' disabled='true' class="l-size" value="15" /></label>
+			<label>Pitch: <input name='pitch' disabled='true' class="l-size" value="1" /></label>
+			<label>Drop: <input name='drop' disabled='true' class="l-size" value="2" /></label>
+			<label>Cut1: <input name='cut1' disabled='true' class="l-size" value="0" /></label>
+			<label>Cut2: <input name='cut2' disabled='true' class="l-size" value="0" /></label>
+		</fieldset>
+		<fieldset class='leanto' data-wall='back'>
+			<legend>Back</legend>
+			<label>Enable: <input type="checkbox" name='c_front'></label>
+			<label>Width: <input name='width' disabled='true' class="l-size" value="15" /></label>
+			<label>Pitch: <input name='pitch' disabled='true' class="l-size" value="1" /></label>
+			<label>Drop: <input name='drop' disabled='true' class="l-size" value="2" /></label>
+			<label>Cut1: <input name='cut1' disabled='true' class="l-size" value="0" /></label>
+			<label>Cut2: <input name='cut2' disabled='true' class="l-size" value="0" /></label>
+		</fieldset>
+		<fieldset class='leanto' data-wall='left'>
+			<legend>Left</legend>
+			<label>Enable: <input type="checkbox" name='c_front'></label>
+			<label>Width: <input name='width' disabled='true' class="l-size" value="15" /></label>
+			<label>Pitch: <input name='pitch' disabled='true' class="l-size" value="1" /></label>
+			<label>Drop: <input name='drop' disabled='true' class="l-size" value="2" /></label>
+			<label>Cut1: <input name='cut1' disabled='true' class="l-size" value="0" /></label>
+			<label>Cut2: <input name='cut2' disabled='true' class="l-size" value="0" /></label>
+		</fieldset>
+		<fieldset class='leanto' data-wall='right'>
+			<legend>Right</legend>
+			<label>Enable: <input type="checkbox" name='c_front'></label>
+			<label>Width: <input name='width' disabled='true' class="l-size" value="15" /></label>
+			<label>Pitch: <input name='pitch' disabled='true' class="l-size" value="1" /></label>
+			<label>Drop: <input name='drop' disabled='true' class="l-size" value="2" /></label>
+			<label>Cut1: <input name='cut1' disabled='true' class="l-size" value="0" /></label>
+			<label>Cut2: <input name='cut2' disabled='true' class="l-size" value="0" /></label>
+		</fieldset>
+	</fieldset>
+	<fieldset>
+		<legend>Wainscot</legend>
+		<label>Enabled: <input class='size-c' type="checkbox" name='wainscot'></label>
+	</fieldset>
+	<fieldset>
+		<legend>Gutter</legend>
+		<label>Enabled: <input class='size-c' type="checkbox" name='gutter'></label>
+	</fieldset>	
+	<fieldset>
+		<legend>Ridge Vent</legend>
+		<label>Type:</label>
+		<select name='vent' class='size' >
+			<option value='none'>None</option>
+			<option value='standard'>Standard</option>
+			<option value='low'>Low</option>
+		</select>
+		<label>Spread: <input class='size-c' type="checkbox" name='spread'></label>
+	</fieldset>	
+	<fieldset>
+		<legend>Color Selections</legend>
+		<label>Wall: 
+			<select style="background-color: #8a7967" class='changeColor' name='wallColor'>
+				<option style="background-color: #D0D6D6" value="D0D6D6">Galvalume Plus</option>
+				<option style="background-color: #d8e5e6" value='d8e5e6'>White</option>
+				<option style="background-color: #dad0ca" value='dad0ca'>Twilight Gray</option>
+				<option style="background-color: #bbb0a3" value='bbb0a3'>Smokey Pewter</option>
+				<option style="background-color: #a4a89c" value='a4a89c'>Light Gray</option>
+				<option style="background-color: #8b8c8d" value='8b8c8d'>Silver Metallic</option>
+				<option style="background-color: #8b8c8d" value='949ca1'>Smokestack Gray</option>
+				<option style="background-color: #200000" value='200000'>Black</option>
+				<option style="background-color: #636466" value='636466'>Charcoal</option>
+				<option style="background-color: #425968" value='425968'>Deep River Blue</option>
+				<option style="background-color: #004769" value='004769'>Deep Blue</option>
+				<option style="background-color: #217497" value='217497'>Hawaiian Blue</option>
+				<option style="background-color: #398e8a" value='398e8a'>Marine Green</option>
+				<option style="background-color: #374c48" value='374c48'>Forest Green</option>
+				<option style="background-color: #376351" value='376351'>Deep Green</option>
+				<option style="background-color: #004833" value='004833'>Ivy Green</option>
+				<option style="background-color: #627f70" value='627f70'>Colony Green</option>
+				<option style="background-color: #301e00" value='301e00'>Mansard Brown</option>
+				<option style="background-color: #4e4436" value='4e4436'>Burnished Slate</option>
+				<option style="background-color: #4b3d2a" value='4b3d2a'>Coco Brown</option>
+				<option style="background-color: #7c6a55" value='7c6a55'>Chestnut Brown</option>
+				<option style="background-color: #8a7967" value='8a7967' selected>Saddle Leather Brown</option>
+				<option style="background-color: #91665a" value='91665a'>Rustic Brown</option>
+				<option style="background-color: #933c06" value='933c06'>Rustic Red</option>
+				<option style="background-color: #6a2316" value='6a2316'>Burgundy</option>
+				<option style="background-color: #a11d21" value='a11d21'>Patriot Red</option>
+				<option style="background-color: #b45340" value='b45340'>Sunset Red</option>
+				<option style="background-color: #8e654c" value='8e654c'>Bright Copper</option>
+				<option style="background-color: #baa273" value='baa273'>Tan</option>
+				<option style="background-color: #c1a870" value='c1a870'>Gold</option>
+				<option style="background-color: #b3a88b" value='b3a88b'>Desert Tan</option>
+				<option style="background-color: #cfcaa8" value='cfcaa8'>Light Stone</option>
+			</select>
+		</label>
+
+		<label>Roof: 
+			<select style="background-color: #d8e5e6" class='changeColor' name='roofColor'>
+				<option style="background-color: #D0D6D6" value="D0D6D6">Galvalume Plus</option>
+				<option style="background-color: #d8e5e6" value='d8e5e6' selected>White</option>
+				<option style="background-color: #dad0ca" value='dad0ca'>Twilight Gray</option>
+				<option style="background-color: #bbb0a3" value='bbb0a3'>Smokey Pewter</option>
+				<option style="background-color: #a4a89c" value='a4a89c'>Light Gray</option>
+				<option style="background-color: #8b8c8d" value='8b8c8d'>Silver Metallic</option>
+				<option style="background-color: #8b8c8d" value='949ca1'>Smokestack Gray</option>
+				<option style="background-color: #200000" value='200000'>Black</option>
+				<option style="background-color: #636466" value='636466'>Charcoal</option>
+				<option style="background-color: #425968" value='425968'>Deep River Blue</option>
+				<option style="background-color: #004769" value='004769'>Deep Blue</option>
+				<option style="background-color: #217497" value='217497'>Hawaiian Blue</option>
+				<option style="background-color: #398e8a" value='398e8a'>Marine Green</option>
+				<option style="background-color: #374c48" value='374c48'>Forest Green</option>
+				<option style="background-color: #376351" value='376351'>Deep Green</option>
+				<option style="background-color: #004833" value='004833'>Ivy Green</option>
+				<option style="background-color: #627f70" value='627f70'>Colony Green</option>
+				<option style="background-color: #301e00" value='301e00'>Mansard Brown</option>
+				<option style="background-color: #4e4436" value='4e4436'>Burnished Slate</option>
+				<option style="background-color: #4b3d2a" value='4b3d2a'>Coco Brown</option>
+				<option style="background-color: #7c6a55" value='7c6a55'>Chestnut Brown</option>
+				<option style="background-color: #8a7967" value='8a7967'>Saddle Leather Brown</option>
+				<option style="background-color: #91665a" value='91665a'>Rustic Brown</option>
+				<option style="background-color: #933c06" value='933c06'>Rustic Red</option>
+				<option style="background-color: #6a2316" value='6a2316'>Burgundy</option>
+				<option style="background-color: #a11d21" value='a11d21'>Patriot Red</option>
+				<option style="background-color: #b45340" value='b45340'>Sunset Red</option>
+				<option style="background-color: #8e654c" value='8e654c'>Bright Copper</option>
+				<option style="background-color: #baa273" value='baa273'>Tan</option>
+				<option style="background-color: #c1a870" value='c1a870'>Gold</option>
+				<option style="background-color: #b3a88b" value='b3a88b'>Desert Tan</option>
+				<option style="background-color: #cfcaa8" value='cfcaa8'>Light Stone</option>
+			</select>
+		</label>
+
+		<label>Trim: 
+			<select style="background-color: #4b3d2a" class='changeColor' name='trimColor'>
+				<option style="background-color: #D0D6D6" value="D0D6D6">Galvalume Plus</option>
+				<option style="background-color: #d8e5e6" value='d8e5e6'>White</option>
+				<option style="background-color: #dad0ca" value='dad0ca'>Twilight Gray</option>
+				<option style="background-color: #bbb0a3" value='bbb0a3'>Smokey Pewter</option>
+				<option style="background-color: #a4a89c" value='a4a89c'>Light Gray</option>
+				<option style="background-color: #8b8c8d" value='8b8c8d'>Silver Metallic</option>
+				<option style="background-color: #8b8c8d" value='949ca1'>Smokestack Gray</option>
+				<option style="background-color: #200000" value='200000'>Black</option>
+				<option style="background-color: #636466" value='636466'>Charcoal</option>
+				<option style="background-color: #425968" value='425968'>Deep River Blue</option>
+				<option style="background-color: #004769" value='004769'>Deep Blue</option>
+				<option style="background-color: #217497" value='217497'>Hawaiian Blue</option>
+				<option style="background-color: #398e8a" value='398e8a'>Marine Green</option>
+				<option style="background-color: #374c48" value='374c48'>Forest Green</option>
+				<option style="background-color: #376351" value='376351'>Deep Green</option>
+				<option style="background-color: #004833" value='004833'>Ivy Green</option>
+				<option style="background-color: #627f70" value='627f70'>Colony Green</option>
+				<option style="background-color: #301e00" value='301e00'>Mansard Brown</option>
+				<option style="background-color: #4e4436" value='4e4436'>Burnished Slate</option>
+				<option style="background-color: #4b3d2a" value='4b3d2a' selected>Coco Brown</option>
+				<option style="background-color: #7c6a55" value='7c6a55'>Chestnut Brown</option>
+				<option style="background-color: #8a7967" value='8a7967'>Saddle Leather Brown</option>
+				<option style="background-color: #91665a" value='91665a'>Rustic Brown</option>
+				<option style="background-color: #933c06" value='933c06'>Rustic Red</option>
+				<option style="background-color: #6a2316" value='6a2316'>Burgundy</option>
+				<option style="background-color: #a11d21" value='a11d21'>Patriot Red</option>
+				<option style="background-color: #b45340" value='b45340'>Sunset Red</option>
+				<option style="background-color: #8e654c" value='8e654c'>Bright Copper</option>
+				<option style="background-color: #baa273" value='baa273'>Tan</option>
+				<option style="background-color: #c1a870" value='c1a870'>Gold</option>
+				<option style="background-color: #b3a88b" value='b3a88b'>Desert Tan</option>
+				<option style="background-color: #cfcaa8" value='cfcaa8'>Light Stone</option>
+			</select>
+		</label>
+
+		<label>Rollup: 
+			<select style="background-color: #d8e5e6" class='changeColor' name='rollupColor'>
+				<option style="background-color: #D0D6D6" value="D0D6D6">Galvalume Plus</option>
+				<option style="background-color: #d8e5e6" value='d8e5e6' selected>White</option>
+				<option style="background-color: #dad0ca" value='dad0ca'>Twilight Gray</option>
+				<option style="background-color: #bbb0a3" value='bbb0a3'>Smokey Pewter</option>
+				<option style="background-color: #a4a89c" value='a4a89c'>Light Gray</option>
+				<option style="background-color: #8b8c8d" value='8b8c8d'>Silver Metallic</option>
+				<option style="background-color: #8b8c8d" value='949ca1'>Smokestack Gray</option>
+				<option style="background-color: #200000" value='200000'>Black</option>
+				<option style="background-color: #636466" value='636466'>Charcoal</option>
+				<option style="background-color: #425968" value='425968'>Deep River Blue</option>
+				<option style="background-color: #004769" value='004769'>Deep Blue</option>
+				<option style="background-color: #217497" value='217497'>Hawaiian Blue</option>
+				<option style="background-color: #398e8a" value='398e8a'>Marine Green</option>
+				<option style="background-color: #374c48" value='374c48'>Forest Green</option>
+				<option style="background-color: #376351" value='376351'>Deep Green</option>
+				<option style="background-color: #004833" value='004833'>Ivy Green</option>
+				<option style="background-color: #627f70" value='627f70'>Colony Green</option>
+				<option style="background-color: #301e00" value='301e00'>Mansard Brown</option>
+				<option style="background-color: #4e4436" value='4e4436'>Burnished Slate</option>
+				<option style="background-color: #4b3d2a" value='4b3d2a'>Coco Brown</option>
+				<option style="background-color: #7c6a55" value='7c6a55'>Chestnut Brown</option>
+				<option style="background-color: #8a7967" value='8a7967'>Saddle Leather Brown</option>
+				<option style="background-color: #91665a" value='91665a'>Rustic Brown</option>
+				<option style="background-color: #933c06" value='933c06'>Rustic Red</option>
+				<option style="background-color: #6a2316" value='6a2316'>Burgundy</option>
+				<option style="background-color: #a11d21" value='a11d21'>Patriot Red</option>
+				<option style="background-color: #b45340" value='b45340'>Sunset Red</option>
+				<option style="background-color: #8e654c" value='8e654c'>Bright Copper</option>
+				<option style="background-color: #baa273" value='baa273'>Tan</option>
+				<option style="background-color: #c1a870" value='c1a870'>Gold</option>
+				<option style="background-color: #b3a88b" value='b3a88b'>Desert Tan</option>
+				<option style="background-color: #cfcaa8" value='cfcaa8'>Light Stone</option>
+			</select>
+		</label>
+
+		<label>Wainscot:
+			<select style="background-color: #d8e5e6" class='changeColor' name='wainscotColor'>
+				<option style="background-color: #D0D6D6" value="D0D6D6">Galvalume Plus</option>
+				<option style="background-color: #d8e5e6" value='d8e5e6' selected>White</option>
+				<option style="background-color: #dad0ca" value='dad0ca'>Twilight Gray</option>
+				<option style="background-color: #bbb0a3" value='bbb0a3'>Smokey Pewter</option>
+				<option style="background-color: #a4a89c" value='a4a89c'>Light Gray</option>
+				<option style="background-color: #8b8c8d" value='8b8c8d'>Silver Metallic</option>
+				<option style="background-color: #8b8c8d" value='949ca1'>Smokestack Gray</option>
+				<option style="background-color: #200000" value='200000'>Black</option>
+				<option style="background-color: #636466" value='636466'>Charcoal</option>
+				<option style="background-color: #425968" value='425968'>Deep River Blue</option>
+				<option style="background-color: #004769" value='004769'>Deep Blue</option>
+				<option style="background-color: #217497" value='217497'>Hawaiian Blue</option>
+				<option style="background-color: #398e8a" value='398e8a'>Marine Green</option>
+				<option style="background-color: #374c48" value='374c48'>Forest Green</option>
+				<option style="background-color: #376351" value='376351'>Deep Green</option>
+				<option style="background-color: #004833" value='004833'>Ivy Green</option>
+				<option style="background-color: #627f70" value='627f70'>Colony Green</option>
+				<option style="background-color: #301e00" value='301e00'>Mansard Brown</option>
+				<option style="background-color: #4e4436" value='4e4436'>Burnished Slate</option>
+				<option style="background-color: #4b3d2a" value='4b3d2a'>Coco Brown</option>
+				<option style="background-color: #7c6a55" value='7c6a55'>Chestnut Brown</option>
+				<option style="background-color: #8a7967" value='8a7967'>Saddle Leather Brown</option>
+				<option style="background-color: #91665a" value='91665a'>Rustic Brown</option>
+				<option style="background-color: #933c06" value='933c06'>Rustic Red</option>
+				<option style="background-color: #6a2316" value='6a2316'>Burgundy</option>
+				<option style="background-color: #a11d21" value='a11d21'>Patriot Red</option>
+				<option style="background-color: #b45340" value='b45340'>Sunset Red</option>
+				<option style="background-color: #8e654c" value='8e654c'>Bright Copper</option>
+				<option style="background-color: #baa273" value='baa273'>Tan</option>
+				<option style="background-color: #c1a870" value='c1a870'>Gold</option>
+				<option style="background-color: #b3a88b" value='b3a88b'>Desert Tan</option>
+				<option style="background-color: #cfcaa8" value='cfcaa8'>Light Stone</option>
+			</select>
+		</label>
+
+		<label>Ridge vent:
+			<select style="background-color: #d8e5e6" class='changeColor' name='ventColor'>
+				<option style="background-color: #D0D6D6" value="D0D6D6">Galvalume Plus</option>
+				<option style="background-color: #d8e5e6" value='d8e5e6' selected>White</option>
+				<option style="background-color: #dad0ca" value='dad0ca'>Twilight Gray</option>
+				<option style="background-color: #bbb0a3" value='bbb0a3'>Smokey Pewter</option>
+				<option style="background-color: #a4a89c" value='a4a89c'>Light Gray</option>
+				<option style="background-color: #8b8c8d" value='8b8c8d'>Silver Metallic</option>
+				<option style="background-color: #8b8c8d" value='949ca1'>Smokestack Gray</option>
+				<option style="background-color: #200000" value='200000'>Black</option>
+				<option style="background-color: #636466" value='636466'>Charcoal</option>
+				<option style="background-color: #425968" value='425968'>Deep River Blue</option>
+				<option style="background-color: #004769" value='004769'>Deep Blue</option>
+				<option style="background-color: #217497" value='217497'>Hawaiian Blue</option>
+				<option style="background-color: #398e8a" value='398e8a'>Marine Green</option>
+				<option style="background-color: #374c48" value='374c48'>Forest Green</option>
+				<option style="background-color: #376351" value='376351'>Deep Green</option>
+				<option style="background-color: #004833" value='004833'>Ivy Green</option>
+				<option style="background-color: #627f70" value='627f70'>Colony Green</option>
+				<option style="background-color: #301e00" value='301e00'>Mansard Brown</option>
+				<option style="background-color: #4e4436" value='4e4436'>Burnished Slate</option>
+				<option style="background-color: #4b3d2a" value='4b3d2a'>Coco Brown</option>
+				<option style="background-color: #7c6a55" value='7c6a55'>Chestnut Brown</option>
+				<option style="background-color: #8a7967" value='8a7967'>Saddle Leather Brown</option>
+				<option style="background-color: #91665a" value='91665a'>Rustic Brown</option>
+				<option style="background-color: #933c06" value='933c06'>Rustic Red</option>
+				<option style="background-color: #6a2316" value='6a2316'>Burgundy</option>
+				<option style="background-color: #a11d21" value='a11d21'>Patriot Red</option>
+				<option style="background-color: #b45340" value='b45340'>Sunset Red</option>
+				<option style="background-color: #8e654c" value='8e654c'>Bright Copper</option>
+				<option style="background-color: #baa273" value='baa273'>Tan</option>
+				<option style="background-color: #c1a870" value='c1a870'>Gold</option>
+				<option style="background-color: #b3a88b" value='b3a88b'>Desert Tan</option>
+				<option style="background-color: #cfcaa8" value='cfcaa8'>Light Stone</option>
+			</select>
+		</label>
+	</fieldset>	
+	<br/>
+	<br/>
+	<br/>
+</div>
+	<div id='canvas-fabric'></div>    
+	<script>
+		function printHoles(props) {
+			$('.contanerHoles').html('');
+			props.map(function(obj) {
+				$('.contanerHoles').append("<div>" +obj.name+ " <button class='remoreHole' data-id='" +obj.id+ "'>delete</button></div>");
+			});
+		}
+
+		fabric.init();
+		$('.size').change(function() { 	
+			var input = $(this);
+			fabric.state.setState({type:input.attr('name'), value: input.val()},function(answer) {
+				input.val(answer);
+			});
+		});
+		$('.view').change(function() { 	
+			fabric.state.setState({type:$(this).attr('name'), value: $(this).val() });
+		});
+		$('.size-c').change(function() { 
+			fabric.state.setState({type:$(this).attr('name'), value: $(this).is(':checked') });
+		});
+		$('.changeColor').change(function() { 
+			$(this).css("background-color",'#' + $(this).val());
+			fabric.state.setState({type:'setColor',name:$(this).attr('name'), value: $(this).val() });
+		});
+		$('.addHole').click(function() {
+			var _action = {
+				type: 'addHole',
+				value: $('select[name=window]').val(),
+				wall: $('select[name=wall]').val(),
+				name: $('select[name=window] option:selected').html(),
+				callback: printHoles
+			}
+			fabric.state.setState(_action);
+		});
+	
+		$('.contanerHoles').on("click","button", function() {
+			var _action = {
+				type: 'removeHole',
+				value: $(this).data('id'),
+				callback: printHoles
+			}
+			fabric.state.setState(_action);
+		});
+
+
+		$('.leanto input[type=checkbox]').click(function() {
+			if ($(this).is(':checked')) {
+				$(this).parent().parent().find("input.l-size").removeAttr("disabled");
+				fabric.state.setState({ type:'set-lean-to',wall:$(this).parent().parent().data('wall'), name:'enable', value: true });
+			} else {
+				$(this).parent().parent().find("input.l-size").attr("disabled",true);
+				fabric.state.setState({ type:'set-lean-to',wall:$(this).parent().parent().data('wall'), name:'enable', value: false });
+			}
+		});
+
+		$('.l-size').change(function() { 
+			var input = $(this);
+
+			fabric.state.setState({ type:'set-lean-to',wall:input.parent().parent().data('wall'), name:input.attr('name'), value: input.val() },function(answer) {
+				input.val(answer);
+			}); 
+		});
+
+		$(".accessories div").click(function() {
+			if ($(this).hasClass('models')) {
+				fabric.state.setState({ type: 'addModel', value: $(this).data('id') }, function(answer) {
+					if (answer.status===true) {
+						$(".accessories div.models."+answer.type).addClass('on');
+					} else {
+						$(".accessories div.models."+answer.type).removeClass('on');
+					}
+				});
+			} else {
+				fabric.state.setState({ type: $(this).data('type'), value: $(this).data('id') });
+			}
+
+		});
+	
+	</script>
+</body>
+</html>
